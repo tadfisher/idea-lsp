@@ -2,10 +2,33 @@ package com.tadfisher.idea.lsp.server
 
 import com.google.common.truth.Truth.assertThat
 import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
-import com.nhaarman.mockito_kotlin.mock
-import org.eclipse.lsp4j.*
+import com.nhaarman.mockitokotlin2.mock
+import org.eclipse.lsp4j.ClientCapabilities
+import org.eclipse.lsp4j.CodeActionCapabilities
+import org.eclipse.lsp4j.CodeLensCapabilities
+import org.eclipse.lsp4j.CompletionCapabilities
+import org.eclipse.lsp4j.CompletionItemCapabilities
+import org.eclipse.lsp4j.DefinitionCapabilities
+import org.eclipse.lsp4j.DidChangeConfigurationCapabilities
+import org.eclipse.lsp4j.DidChangeWatchedFilesCapabilities
+import org.eclipse.lsp4j.DocumentHighlightCapabilities
+import org.eclipse.lsp4j.DocumentLinkCapabilities
+import org.eclipse.lsp4j.DocumentSymbolCapabilities
+import org.eclipse.lsp4j.ExecuteCommandCapabilities
+import org.eclipse.lsp4j.FormattingCapabilities
+import org.eclipse.lsp4j.HoverCapabilities
+import org.eclipse.lsp4j.InitializeParams
+import org.eclipse.lsp4j.OnTypeFormattingCapabilities
+import org.eclipse.lsp4j.RangeFormattingCapabilities
+import org.eclipse.lsp4j.ReferencesCapabilities
+import org.eclipse.lsp4j.RenameCapabilities
+import org.eclipse.lsp4j.SignatureHelpCapabilities
+import org.eclipse.lsp4j.SymbolCapabilities
+import org.eclipse.lsp4j.SynchronizationCapabilities
+import org.eclipse.lsp4j.TextDocumentClientCapabilities
+import org.eclipse.lsp4j.WorkspaceClientCapabilities
+import org.eclipse.lsp4j.WorkspaceEditCapabilities
 import org.eclipse.lsp4j.services.LanguageClient
-import org.eclipse.lsp4j.services.LanguageServer
 import org.junit.Test
 
 class IdeaLanguageServerTest : LightCodeInsightFixtureTestCase() {

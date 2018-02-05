@@ -8,12 +8,12 @@ import org.eclipse.lsp4j.ClientCapabilities
 import org.eclipse.lsp4j.services.LanguageClient
 
 class ClientSession(val client: LanguageClient,
-                    val processId: Int?,
-                    val rootUri: String,
-                    val capabilities: ClientCapabilities,
-                    val project: Project) {
+    val processId: Int?,
+    val rootUri: String,
+    val capabilities: ClientCapabilities,
+    val project: Project) {
 
-  val psiFileFactory by lazy { PsiFileFactory.getInstance(project) }
-  val psiManager by lazy { PsiManagerEx.getInstance(project) }
-  val psiDocumentManager by lazy { PsiDocumentManager.getInstance(project) }
+    val psiFileFactory by lazy { PsiFileFactory.getInstance(project) }
+    val psiManager by lazy { PsiManagerEx.getInstance(project) }
+    val psiDocumentManager by lazy { PsiDocumentManager.getInstance(project) }
 }
