@@ -1,5 +1,6 @@
 package com.tadfisher.idea.lsp.server
 
+import com.google.common.annotations.VisibleForTesting
 import com.intellij.openapi.project.ex.ProjectManagerEx
 import org.eclipse.lsp4j.CodeActionParams
 import org.eclipse.lsp4j.CodeLens
@@ -24,6 +25,7 @@ import org.eclipse.lsp4j.Hover
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.InitializeResult
 import org.eclipse.lsp4j.Location
+import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.ReferenceParams
 import org.eclipse.lsp4j.RenameParams
 import org.eclipse.lsp4j.ServerCapabilities
@@ -46,7 +48,7 @@ import java.util.concurrent.CompletableFuture
 class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService, TextDocumentService {
 
     private lateinit var client: LanguageClient
-    lateinit var session: ClientSession
+    @VisibleForTesting lateinit var session: ClientSession
 
     override fun connect(client: LanguageClient) {
         this.client = client
@@ -59,22 +61,23 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
 
         session = ClientSession(client, params.processId, params.rootUri, params.capabilities, project)
 
-        val capabilities = ServerCapabilities()
-        capabilities.textDocumentSync = Either.forLeft(TextDocumentSyncKind.Incremental)
-        capabilities.completionProvider = CompletionOptions(true, listOf(".", "@", "#"))
-        capabilities.hoverProvider = true
-        capabilities.definitionProvider = true
-        capabilities.documentSymbolProvider = true
-        capabilities.workspaceSymbolProvider = true
-        capabilities.referencesProvider = true
-        capabilities.documentHighlightProvider = true
-        capabilities.documentFormattingProvider = true
-        capabilities.documentRangeFormattingProvider = true
-        capabilities.codeLensProvider = CodeLensOptions(true)
-        capabilities.codeActionProvider = true
+        val capabilities = ServerCapabilities().apply {
+            textDocumentSync = Either.forLeft(TextDocumentSyncKind.Incremental)
+            completionProvider = CompletionOptions(true, listOf(".", "@", "#"))
+            hoverProvider = true
+            definitionProvider = true
+            documentSymbolProvider = true
+            workspaceSymbolProvider = true
+            referencesProvider = true
+            documentHighlightProvider = true
+            documentFormattingProvider = true
+            documentRangeFormattingProvider = true
+            codeLensProvider = CodeLensOptions(true)
+            codeActionProvider = true
+        }
 
-        val result = InitializeResult()
-        result.capabilities = capabilities
+        val result = InitializeResult(capabilities)
+
         return CompletableFuture.completedFuture(result)
     }
 
@@ -121,9 +124,11 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun definition(position: TextDocumentPositionParams): CompletableFuture<MutableList<out Location>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun definition(params: TextDocumentPositionParams): CompletableFuture<List<Location>> =
+        CompletableFuture.supplyAsync {
+            session.findDefinitions(params.textDocument.uri, params.position.line, params.position.character)
+                .map { it.location() }
+        }
 
     override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<MutableList<out TextEdit>> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
@@ -133,9 +138,19 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun rename(params: RenameParams): CompletableFuture<WorkspaceEdit> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun rename(params: RenameParams): CompletableFuture<WorkspaceEdit> =
+        CompletableFuture.supplyAsync {
+            session.rename(params.textDocument.uri, params.position.line, params.position.character, params.newName)
+                .mapValues { (_, usages) -> usages
+                    .sortedByDescending { it.segment!!.startOffset }
+                    .map {
+                        TextEdit(Range(it.file!!.position(it.segment!!.startOffset),
+                            it.file!!.position(it.segment!!.endOffset)),
+                            it.element!!.text)
+                    }
+                }
+                .let { textEdits -> WorkspaceEdit(textEdits) }
+        }
 
     override fun completion(position: TextDocumentPositionParams): CompletableFuture<Either<MutableList<CompletionItem>, CompletionList>> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
@@ -145,32 +160,40 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun didOpen(params: DidOpenTextDocumentParams) {
-//        params.textDocument.let { doc ->
-//            session.psiFileFactory.createFileFromText(doc., FileTypeRegistry.getInstance().getFileTypeByFileName(doc))
-//        }
-    }
+    override fun didOpen(params: DidOpenTextDocumentParams) =
+        session.updateFile(params.textDocument.uri, params.textDocument.text)
 
-    override fun didSave(params: DidSaveTextDocumentParams) {
-    }
+    override fun didSave(params: DidSaveTextDocumentParams) =
+        if (params.text != null) {
+            session.updateFile(params.textDocument.uri, params.text)
+        } else {
+            session.reloadFile(params.textDocument.uri)
+        }
 
     override fun signatureHelp(position: TextDocumentPositionParams): CompletableFuture<SignatureHelp> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun didClose(params: DidCloseTextDocumentParams) {
-    }
+    override fun didClose(params: DidCloseTextDocumentParams) =
+        session.reloadFile(params.textDocument.uri)
 
     override fun formatting(params: DocumentFormattingParams): CompletableFuture<MutableList<out TextEdit>> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun didChange(params: DidChangeTextDocumentParams) {
-    }
+    override fun didChange(params: DidChangeTextDocumentParams) =
+        params.contentChanges.forEach { change ->
+            session.updateFile(params.textDocument.uri,
+                change.range.start.line, change.range.start.character,
+                change.range.end.line, change.range.end.character,
+                change.text)
+        }.also { session.commitFile(params.textDocument.uri) }
 
-    override fun references(params: ReferenceParams): CompletableFuture<MutableList<out Location>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun references(params: ReferenceParams): CompletableFuture<List<Location>> =
+        CompletableFuture.supplyAsync {
+            session.findReferences(params.textDocument.uri, params.position.line, params.position.character)
+                .map { it.location() }
+        }
 
     override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.

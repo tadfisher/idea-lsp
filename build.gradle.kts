@@ -31,7 +31,7 @@ dependencies {
     testCompile("com.squareup.okio:okio:1.13.0")
 }
 
-configure<IntelliJPluginExtension> {
+intellij {
     version = ideaVersion
     pluginName = project.displayName
     updateSinceUntilBuild = false

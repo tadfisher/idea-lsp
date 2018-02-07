@@ -16,6 +16,7 @@ class LspApplicationStarter : ApplicationStarterEx() {
     override fun canProcessExternalCommandLine(): Boolean = true
 
     override fun processExternalCommandLine(args: Array<out String>?, currentDirectory: String?) {
+        // TODO
         super.processExternalCommandLine(args, currentDirectory)
     }
 
@@ -24,7 +25,7 @@ class LspApplicationStarter : ApplicationStarterEx() {
     }
 
     override fun main(a: Array<out String>) {
-        val application = ApplicationManagerEx.getApplicationEx()
+        val application = ApplicationManagerEx.getApplicationEx().apply { doNotSave() }
         val server = application.getComponent(LspServer::class.java)
         val future = server.connect(StdioConnectionFactory().open())
         future?.get()

@@ -72,6 +72,6 @@
        "implementation" class specifies the name of the class
        added to the extension point. -->
   <extensions defaultExtensionNs="com.intellij">
-    <appStarter implementation="com.tadfisher.idea.lsp.LspApplicationStarter"/>
+    <appStarter implementation="com.tadfisher.idea.lsp.LspApplicationStarter" />
   </extensions>
 </idea-plugin>
