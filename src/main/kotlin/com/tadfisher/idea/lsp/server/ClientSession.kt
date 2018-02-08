@@ -3,7 +3,6 @@ package com.tadfisher.idea.lsp.server
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiDocumentManager
@@ -22,8 +21,6 @@ import com.tadfisher.idea.lsp.LspRenameRefactoring
 import org.eclipse.lsp4j.ClientCapabilities
 import org.eclipse.lsp4j.services.LanguageClient
 import java.io.FileNotFoundException
-import java.net.URI
-import java.net.URISyntaxException
 
 class ClientSession(val client: LanguageClient,
     val processId: Int?,
@@ -31,7 +28,7 @@ class ClientSession(val client: LanguageClient,
     val capabilities: ClientCapabilities,
     val project: Project) {
 
-    private val fs by lazy { LocalFileSystem.getInstance() }
+    val fileManager by lazy { VirtualFileManager.getInstance() }
     val fileDocumentManager by lazy { FileDocumentManager.getInstance() }
     val psiDocumentManager by lazy { PsiDocumentManager.getInstance(project) }
     val psiFileFactory by lazy { PsiFileFactory.getInstance(project) }
@@ -87,14 +84,13 @@ class ClientSession(val client: LanguageClient,
 
     private fun findPsiFile(uri: String): PsiFile? = findVirtualFile(uri)?.let { psiManager.findFile(it) }
 
-    private fun findVirtualFile(uri: String): VirtualFile? =
-        uriToPath(uri)?.let { fs.findFileByPath(it) }
+    private fun findVirtualFile(uri: String): VirtualFile? = fileManager.findFileByUrl(uri)
 
-    private fun uriToPath(uri: String): String? = try {
-        URI(uri).path
-    } catch (e: URISyntaxException) {
-        null
-    }
+//    private fun uriToPath(uri: String): String? = try {
+//        URI(uri).path
+//    } catch (e: URISyntaxException) {
+//        null
+//    }
 
     private fun Document.offset(line: Int, char: Int): Int = getLineStartOffset(line) + char
 

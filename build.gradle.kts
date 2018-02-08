@@ -1,6 +1,7 @@
 
 import org.gradle.kotlin.dsl.*
 import org.jetbrains.intellij.IntelliJPluginExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.2.21"
@@ -29,6 +30,7 @@ dependencies {
     testCompile("com.google.truth:truth:0.39")
     testCompile("com.nhaarman.mockitokotlin2:mockito-kotlin:2.0.0-alpha02")
     testCompile("com.squareup.okio:okio:1.13.0")
+
 }
 
 intellij {
@@ -36,6 +38,10 @@ intellij {
     pluginName = project.displayName
     updateSinceUntilBuild = false
     downloadSources = downloadIdeaSources.toBoolean()
+}
+
+tasks.withType<KotlinCompile> {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 tasks.withType<Wrapper> {

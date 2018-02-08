@@ -1,7 +1,9 @@
 package com.tadfisher.idea.lsp.server
 
 import com.google.common.annotations.VisibleForTesting
-import com.intellij.openapi.project.ex.ProjectManagerEx
+import com.intellij.ide.impl.ProjectUtil
+import com.intellij.openapi.project.runWhenProjectOpened
+import com.intellij.openapi.vfs.VirtualFileManager
 import org.eclipse.lsp4j.CodeActionParams
 import org.eclipse.lsp4j.CodeLens
 import org.eclipse.lsp4j.CodeLensOptions
@@ -42,8 +44,9 @@ import org.eclipse.lsp4j.services.LanguageClientAware
 import org.eclipse.lsp4j.services.LanguageServer
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
-import java.net.URI
 import java.util.concurrent.CompletableFuture
+import java.util.logging.Level
+import java.util.logging.Logger
 
 class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService, TextDocumentService {
 
@@ -54,32 +57,36 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
         this.client = client
     }
 
-    override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
-        val uri = URI.create(params.rootUri)
-        val project = ProjectManagerEx.getInstanceEx().loadProject(uri.path)
+    override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> =
+        VirtualFileManager.getInstance().refreshAndFindFileByUrl(params.rootUri)
+            ?.let { projectRoot -> ProjectUtil.openOrImport(projectRoot.path, null, false) }
+            ?.let { project ->
+                CompletableFuture.runAsync {
+                    project.runWhenProjectOpened(Runnable {
+                        Logger.getAnonymousLogger().log(Level.ALL, "project opened: $project")
+                    })
+                }.thenApplyAsync {
+                    session = ClientSession(client, params.processId, params.rootUri, params.capabilities, project)
+
+                    val capabilities = ServerCapabilities().apply {
+                        textDocumentSync = Either.forLeft(TextDocumentSyncKind.Incremental)
+                        completionProvider = CompletionOptions(true, listOf(".", "@", "#"))
+                        hoverProvider = true
+                        definitionProvider = true
+                        documentSymbolProvider = true
+                        workspaceSymbolProvider = true
+                        referencesProvider = true
+                        documentHighlightProvider = true
+                        documentFormattingProvider = true
+                        documentRangeFormattingProvider = true
+                        codeLensProvider = CodeLensOptions(true)
+                        codeActionProvider = true
+                    }
+
+                    InitializeResult(capabilities)
+                }
+            }
             ?: throw IllegalStateException("Project could not be loaded for path '${params.rootUri}'")
-
-        session = ClientSession(client, params.processId, params.rootUri, params.capabilities, project)
-
-        val capabilities = ServerCapabilities().apply {
-            textDocumentSync = Either.forLeft(TextDocumentSyncKind.Incremental)
-            completionProvider = CompletionOptions(true, listOf(".", "@", "#"))
-            hoverProvider = true
-            definitionProvider = true
-            documentSymbolProvider = true
-            workspaceSymbolProvider = true
-            referencesProvider = true
-            documentHighlightProvider = true
-            documentFormattingProvider = true
-            documentRangeFormattingProvider = true
-            codeLensProvider = CodeLensOptions(true)
-            codeActionProvider = true
-        }
-
-        val result = InitializeResult(capabilities)
-
-        return CompletableFuture.completedFuture(result)
-    }
 
     override fun shutdown(): CompletableFuture<Any> {
         return CompletableFuture.completedFuture(Any())
