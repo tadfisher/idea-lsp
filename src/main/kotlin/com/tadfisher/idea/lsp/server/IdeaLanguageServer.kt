@@ -1,8 +1,6 @@
 package com.tadfisher.idea.lsp.server
 
 import com.google.common.annotations.VisibleForTesting
-import com.intellij.ide.impl.ProjectUtil
-import com.intellij.openapi.project.runWhenProjectOpened
 import com.intellij.openapi.vfs.VirtualFileManager
 import org.eclipse.lsp4j.CodeActionParams
 import org.eclipse.lsp4j.CodeLens
@@ -45,51 +43,46 @@ import org.eclipse.lsp4j.services.LanguageServer
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
-import java.util.logging.Level
 import java.util.logging.Logger
 
 class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService, TextDocumentService {
 
-    private lateinit var client: LanguageClient
+    @VisibleForTesting lateinit var client: LanguageClient
     @VisibleForTesting lateinit var session: ClientSession
 
     override fun connect(client: LanguageClient) {
         this.client = client
     }
 
-    override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> =
-        VirtualFileManager.getInstance().refreshAndFindFileByUrl(params.rootUri)
-            ?.let { projectRoot -> ProjectUtil.openOrImport(projectRoot.path, null, false) }
-            ?.let { project ->
-                CompletableFuture.runAsync {
-                    project.runWhenProjectOpened(Runnable {
-                        Logger.getAnonymousLogger().log(Level.ALL, "project opened: $project")
-                    })
-                }.thenApplyAsync {
-                    session = ClientSession(client, params.processId, params.rootUri, params.capabilities, project)
-
-                    val capabilities = ServerCapabilities().apply {
-                        textDocumentSync = Either.forLeft(TextDocumentSyncKind.Incremental)
-                        completionProvider = CompletionOptions(true, listOf(".", "@", "#"))
-                        hoverProvider = true
-                        definitionProvider = true
-                        documentSymbolProvider = true
-                        workspaceSymbolProvider = true
-                        referencesProvider = true
-                        documentHighlightProvider = true
-                        documentFormattingProvider = true
-                        documentRangeFormattingProvider = true
-                        codeLensProvider = CodeLensOptions(true)
-                        codeActionProvider = true
-                    }
-
-                    InitializeResult(capabilities)
-                }
-            }
+    override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
+        val projectRoot = VirtualFileManager.getInstance().refreshAndFindFileByUrl(params.rootUri)
             ?: throw IllegalStateException("Project could not be loaded for path '${params.rootUri}'")
+        session = ClientSession(Workspace(projectRoot))
+
+        return CompletableFuture.supplyAsync {
+            val capabilities = ServerCapabilities().apply {
+                textDocumentSync = Either.forLeft(TextDocumentSyncKind.Incremental)
+                completionProvider = CompletionOptions(true, listOf(".", "@", "#"))
+                hoverProvider = true
+                definitionProvider = true
+                documentSymbolProvider = true
+                workspaceSymbolProvider = true
+                referencesProvider = true
+                documentHighlightProvider = true
+                documentFormattingProvider = true
+                documentRangeFormattingProvider = true
+                codeLensProvider = CodeLensOptions(true)
+                codeActionProvider = true
+            }
+
+            InitializeResult(capabilities)
+        }
+    }
 
     override fun shutdown(): CompletableFuture<Any> {
-        return CompletableFuture.completedFuture(Any())
+        logger.info("Shutting down")
+        session.close()
+        return CompletableFuture.completedFuture(Unit)
     }
 
     override fun exit() {
@@ -204,5 +197,9 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
 
     override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    companion object {
+        private val logger = Logger.getLogger(IdeaLanguageServer::class.simpleName)
     }
 }

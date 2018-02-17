@@ -1,41 +1,32 @@
 package com.tadfisher.idea.lsp.server
 
+import com.intellij.openapi.application.ex.ApplicationManagerEx
+import com.intellij.openapi.application.invokeAndWaitIfNeed
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Document
-import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.PsiManagerEx
 import com.intellij.psi.search.searches.ReferencesSearch
-import com.intellij.refactoring.RefactoringFactory
-import com.intellij.refactoring.listeners.RefactoringListenerManager
 import com.intellij.usageView.UsageInfo
 import com.tadfisher.idea.lsp.LspRenameRefactoring
-import org.eclipse.lsp4j.ClientCapabilities
-import org.eclipse.lsp4j.services.LanguageClient
 import java.io.FileNotFoundException
 
-class ClientSession(val client: LanguageClient,
-    val processId: Int?,
-    val rootUri: String,
-    val capabilities: ClientCapabilities,
-    val project: Project) {
-
-    val fileManager by lazy { VirtualFileManager.getInstance() }
-    val fileDocumentManager by lazy { FileDocumentManager.getInstance() }
+class ClientSession(val workspace: Workspace) {
+    val application = ApplicationManagerEx.getApplicationEx()
+    val project = workspace.project
     val psiDocumentManager by lazy { PsiDocumentManager.getInstance(project) }
-    val psiFileFactory by lazy { PsiFileFactory.getInstance(project) }
     val psiManager by lazy { PsiManagerEx.getInstance(project) }
-    val refactoringFactory by lazy { RefactoringFactory.getInstance(project) }
-    val refactoringListenerManager by lazy { RefactoringListenerManager.getInstance(project) }
-    val virtualFileManager by lazy { VirtualFileManager.getInstance() }
+
+    fun close() {
+        workspace.clear()
+    }
 
     fun reloadFile(uri: String) {
         findVirtualFile(uri)?.refresh(false, true)
@@ -43,8 +34,12 @@ class ClientSession(val client: LanguageClient,
 
     fun updateFile(uri: String, text: String) =
         with (findDocument(uri) ?: throw FileNotFoundException(uri)) {
-            setText(text)
-            psiDocumentManager.commitDocument(this)
+            invokeAndWaitIfNeed {
+                application.runWriteAction {
+                    setText(text)
+                    psiDocumentManager.commitDocument(this)
+                }
+            }
         }
 
     fun updateFile(uri: String, startLine: Int, startChar: Int, endLine: Int, endChar: Int, text: String) =
@@ -80,11 +75,19 @@ class ClientSession(val client: LanguageClient,
         }
     }
 
-    private fun findDocument(uri: String): Document? = findPsiFile(uri)?.let { psiDocumentManager.getDocument(it) }
+    fun findDocument(uri: String): Document? = findPsiFile(uri)?.let {
+        invokeAndWaitIfNeed {
+            application.runReadAction(Computable { psiDocumentManager.getDocument(it) })
+        }
+    }
 
-    private fun findPsiFile(uri: String): PsiFile? = findVirtualFile(uri)?.let { psiManager.findFile(it) }
+    private fun findPsiFile(uri: String): PsiFile? = findVirtualFile(uri)?.let {
+        invokeAndWaitIfNeed {
+            application.runReadAction(Computable { psiManager.findFile(it) })
+        }
+    }
 
-    private fun findVirtualFile(uri: String): VirtualFile? = fileManager.findFileByUrl(uri)
+    private fun findVirtualFile(uri: String): VirtualFile? = workspace.findByUri(uri)
 
 //    private fun uriToPath(uri: String): String? = try {
 //        URI(uri).path
@@ -110,4 +113,8 @@ class ClientSession(val client: LanguageClient,
         } else {
             listOfNotNull(resolve())
         }
+
+    companion object {
+        private val log = Logger.getInstance(ClientSession::class.java)
+    }
 }

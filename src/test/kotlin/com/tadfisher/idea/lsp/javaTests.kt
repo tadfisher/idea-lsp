@@ -2,43 +2,35 @@ package com.tadfisher.idea.lsp
 
 import com.google.common.truth.Truth.assertThat
 import org.eclipse.lsp4j.DidOpenTextDocumentParams
-import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.TextDocumentItem
+import org.spekframework.spek2.Spek
+import org.spekframework.spek2.lifecycle.CachingMode
 
-class JavaTests : LspFixtureTestCase("java-project", "main") {
+class JavaSpec : Spek({
+    val fixture by memoized(CachingMode.SCOPE) { testFixture("java-project") }
+    beforeEachTest { fixture.setup() }
+    afterEachTest { fixture.teardown() }
 
-    fun testInitialize() {
-        val (server, _) = connect(null)
-            val result = server.initialize(InitializeParams().apply {
-                processId = 0
-                rootUri = project.baseDir.url
-                trace = "verbose"
-                capabilities = ALL_CLIENT_CAPABILITIES
-            }).get()
+    describe("a Java LSP server") {
+        it("should handle didOpen") {
+            val src = fixture.find("main/java/com/example/PackagePrivate.java")
 
-        assertThat(result).isNotNull()
-        assertThat(server.session.project).isNotNull()
-    }
+            val fileContents = src.readText()
 
-    fun testDidOpen() {
-        val file = myFixture.findFileInTempDir("java/com/example/PackagePrivate.java")
-        val contents = """
-            package com.example;
-            class PackagePrivate {
-                void otherMethod() {}
-            }
+            val virtualContents = """
+                package com.example;
+                class PackagePrivate {
+                    void otherMethod();
+                }
             """.trimIndent()
-        val (server, _) = connect()
-        server.didOpen(DidOpenTextDocumentParams(
-            TextDocumentItem(
-                file.url,
-                "java",
-                0,
-                contents)))
 
-        val psi = myFixture.psiManager.findFile(file)!!
-        val doc = myFixture.getDocument(psi)!!
+            fixture.server.didOpen(DidOpenTextDocumentParams(
+                TextDocumentItem(src.url(), "java", 0, virtualContents)
+            ))
 
-        assertThat(doc.text == contents)
+            val doc = fixture.server.session.findDocument(src.url())!!
+            assertThat(doc.text).isEqualTo(virtualContents)
+            assertThat(src.readText()).isEqualTo(fileContents)
+        }
     }
-}
+})
