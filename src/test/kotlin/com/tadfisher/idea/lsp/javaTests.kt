@@ -42,7 +42,7 @@ class JavaSpec : Spek({
         group("should find definitions") {
             val src = fixture.find("src/main/java/com/example/Definition.java")
 
-            test("for private const") {
+            test("for private const reference") {
                 val found = fixture.server.definition(TextDocumentPositionParams(
                     TextDocumentIdentifier(src.url()),
                     Position(6, 19)
@@ -51,12 +51,12 @@ class JavaSpec : Spek({
                 assertThat(found.size).isEqualTo(1)
                 with (found[0]) {
                     assertThat(uri).isEqualTo(src.url())
-                    assertThat(range.start).isEqualTo(Position(3, 4))
-                    assertThat(range.end).isEqualTo(Position(3, 48))
+                    assertThat(range.start).isEqualTo(Position(3, 32))
+                    assertThat(range.end).isEqualTo(Position(3, 37))
                 }
             }
 
-            test("for external package-private method") {
+            test("for external method call") {
                 val dst = fixture.find("src/main/java/com/example/PackagePrivate.java")
 
                 val found = fixture.server.definition(TextDocumentPositionParams(
@@ -65,7 +65,27 @@ class JavaSpec : Spek({
                 )).get()
 
                 assertThat(found.size).isEqualTo(1)
-                assertThat(found[0].uri).isEqualTo(dst.url())
+                with (found[0]) {
+                    assertThat(uri).isEqualTo(dst.url())
+                    assertThat(range.start).isEqualTo(Position(3, 9))
+                    assertThat(range.end).isEqualTo(Position(3, 16))
+                }
+            }
+
+            test("for external class declaration") {
+                val dst = fixture.find("src/main/java/com/example/PackagePrivate.java")
+
+                val found = fixture.server.definition(TextDocumentPositionParams(
+                    TextDocumentIdentifier(src.url()),
+                    Position(11, 11)
+                )).get()
+
+                assertThat(found.size).isEqualTo(1)
+                with (found[0]) {
+                    assertThat(uri).isEqualTo(dst.url())
+                    assertThat(range.start).isEqualTo(Position(2, 6))
+                    assertThat(range.end).isEqualTo(Position(2, 20))
+                }
             }
         }
     }
