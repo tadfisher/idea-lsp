@@ -3,14 +3,13 @@ import org.gradle.internal.impldep.org.junit.experimental.categories.Categories.
 import org.gradle.kotlin.dsl.*
 import org.jetbrains.intellij.IntelliJPluginExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.junit.platform.gradle.plugin.EnginesExtension
+import org.jetbrains.kotlin.serialization.jvm.bytesToStrings
 
 plugins {
     kotlin("jvm") version "1.2.21"
     idea
     id("org.jetbrains.gradle.plugin.idea-ext") version "0.1"
     id("org.jetbrains.intellij") version "0.2.18"
-    id("org.junit.platform.gradle.plugin") version "1.1.0-RC1"
     id("com.github.ben-manes.versions") version "0.17.0"
 }
 
@@ -39,6 +38,7 @@ dependencies {
     testImplementation("com.squareup.okio:okio:1.13.0")
     testImplementation(kotlin("reflect", version = kotlinVersion))
     testImplementation(kotlin("test", version = kotlinVersion))
+    testImplementation("org.junit.platform:junit-platform-runner:1.1.0")
     testImplementation("org.spekframework.spek2:spek-dsl-jvm:$spekVersion") {
         exclude(group = "org.jetbrains.kotlin")
     }
@@ -55,19 +55,17 @@ intellij {
     downloadSources = downloadIdeaSources.toBoolean()
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform {
+        includeEngines("spek")
+    }
+}
+
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
 }
 
 tasks.withType<Wrapper> {
-    gradleVersion = "4.5"
+    gradleVersion = "4.6-rc-1"
     distributionType = Wrapper.DistributionType.ALL
-}
-
-junitPlatform {
-    filters {
-        engines {
-            include("spek")
-        }
-    }
 }

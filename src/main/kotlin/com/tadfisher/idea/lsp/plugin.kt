@@ -15,8 +15,7 @@ class LspApplicationStarter : ApplicationStarterEx() {
     override fun isHeadless(): Boolean = true
     override fun canProcessExternalCommandLine(): Boolean = true
 
-    override fun processExternalCommandLine(args: Array<out String>?, currentDirectory: String?) {
-        // TODO
+    override fun processExternalCommandLine(args: Array<out String>, currentDirectory: String?) {
         super.processExternalCommandLine(args, currentDirectory)
     }
 

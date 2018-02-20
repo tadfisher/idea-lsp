@@ -1,6 +1,7 @@
 package com.tadfisher.idea.lsp.server
 
 import com.google.common.annotations.VisibleForTesting
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.vfs.VirtualFileManager
 import org.eclipse.lsp4j.CodeActionParams
 import org.eclipse.lsp4j.CodeLens
@@ -43,11 +44,11 @@ import org.eclipse.lsp4j.services.LanguageServer
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
-import java.util.logging.Logger
 
 class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService, TextDocumentService {
 
     @VisibleForTesting lateinit var client: LanguageClient
+    @VisibleForTesting lateinit var workspace: Workspace
     @VisibleForTesting lateinit var session: ClientSession
 
     override fun connect(client: LanguageClient) {
@@ -57,7 +58,10 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
         val projectRoot = VirtualFileManager.getInstance().refreshAndFindFileByUrl(params.rootUri)
             ?: throw IllegalStateException("Project could not be loaded for path '${params.rootUri}'")
-        session = ClientSession(Workspace(projectRoot))
+        workspace = Workspace(projectRoot)
+        session = ClientSession(workspace)
+
+        workspace.refresh()
 
         return CompletableFuture.supplyAsync {
             val capabilities = ServerCapabilities().apply {
@@ -75,13 +79,15 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
                 codeActionProvider = true
             }
 
+            log.debug("initialize: success")
             InitializeResult(capabilities)
         }
     }
 
     override fun shutdown(): CompletableFuture<Any> {
-        logger.info("Shutting down")
+        log.debug("shutdown: start")
         session.close()
+        log.debug("shutdown: success")
         return CompletableFuture.completedFuture(Unit)
     }
 
@@ -126,8 +132,10 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
 
     override fun definition(params: TextDocumentPositionParams): CompletableFuture<List<Location>> =
         CompletableFuture.supplyAsync {
+            log.debug("definition: start")
             session.findDefinitions(params.textDocument.uri, params.position.line, params.position.character)
-                .map { it.location() }
+                .map { it.location(workspace) }
+                .also { log.debug("definition: success") }
         }
 
     override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<MutableList<out TextEdit>> {
@@ -192,7 +200,7 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
     override fun references(params: ReferenceParams): CompletableFuture<List<Location>> =
         CompletableFuture.supplyAsync {
             session.findReferences(params.textDocument.uri, params.position.line, params.position.character)
-                .map { it.location() }
+                .map { it.location(workspace) }
         }
 
     override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {
@@ -200,6 +208,6 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
     }
 
     companion object {
-        private val logger = Logger.getLogger(IdeaLanguageServer::class.simpleName)
+        private val log = Logger.getInstance(IdeaLanguageServer::class.java)
     }
 }

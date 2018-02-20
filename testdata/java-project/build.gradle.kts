@@ -10,10 +10,6 @@ dependencies {
     testImplementation("junit", "junit", "4.12")
 }
 
-configure<JavaPluginConvention> {
-    sourceSets["main"].java.srcDirs("main")
-}
-
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
 }
