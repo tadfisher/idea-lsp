@@ -48,7 +48,7 @@ implemented, and nothing has been tested with real clients.
   - [X] ~definition~
   - [ ] ~typeDefinition~
   - [ ] ~implementation~
-  - [ ] ~references~
+  - [X] ~references~
   - [ ] ~documentHighlight~
   - [ ] ~documentSymbol~
   - [ ] ~codeAction~

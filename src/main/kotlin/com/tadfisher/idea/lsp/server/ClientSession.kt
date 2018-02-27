@@ -64,7 +64,7 @@ class ClientSession(val workspace: Workspace) {
             return workspace.read { targetElementUtil.getTargetCandidates(ref) }.toList()
         }
 
-        val element = psiFile.findElementAt(adjustedOffset)
+        val element = workspace.read { psiFile.findElementAt(adjustedOffset) }
         if (element != null) {
             return listOfNotNull(
                 workspace.read { targetElementUtil.getGotoDeclarationTarget(element, element.navigationElement) }
@@ -73,11 +73,17 @@ class ClientSession(val workspace: Workspace) {
         return emptyList()
     }
 
-    fun findReferences(uri: String, line: Int, char: Int): List<PsiElement> {
+    fun findReferences(uri: String, line: Int, char: Int, includeDeclaration: Boolean): List<PsiElement> {
         val psiFile = workspace.findPsiFile(uri) ?: throw FileNotFoundException(uri)
-        val document = workspace.psiDocumentManager.getDocument(psiFile) ?: throw FileNotFoundException(uri)
-        val element = psiFile.findElementAt(document.offset(line, char))
-        return element?.asNamed()?.findReferences() ?: emptyList()
+        val document = workspace.findDocument(uri) ?: throw FileNotFoundException(uri)
+        val adjustedOffset = TargetElementUtil.adjustOffset(psiFile, document, document.offset(line, char))
+        val element = workspace.read { psiFile.findElementAt(adjustedOffset)?.asNamed() } ?: return emptyList()
+        return element.findReferences()
+            .let { if (includeDeclaration) {
+                it.plus(findDefinitions(uri, line, char))
+            } else {
+                it
+            }}
     }
 
     fun rename(uri: String, line: Int, char: Int, name: String): Map<String, List<UsageInfo>> {

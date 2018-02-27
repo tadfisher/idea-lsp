@@ -1,7 +1,9 @@
 package com.tadfisher.idea.lsp.server
 
 import com.google.common.util.concurrent.SettableFuture
+import com.intellij.codeInsight.TargetElementUtil
 import com.intellij.ide.util.EditSourceUtil
+import com.intellij.openapi.application.invokeAndWaitIfNeed
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.externalSystem.importing.ImportSpecBuilder
 import com.intellij.openapi.externalSystem.model.DataNode
@@ -35,10 +37,8 @@ fun PsiElement.collectAllOriginalElements(): List<PsiElement> =
         .flatMap { it.getOriginalElements(this) }
         .filterNotNull()
 
-fun PsiElement.asNamed(): PsiNamedElement? =
-    generateSequence(this) { it.parent }
-        .filterIsInstance<PsiNamedElement>()
-        .firstOrNull()
+fun PsiElement.asNamed(offset: Int = 0): PsiNamedElement? =
+    TargetElementUtil.getInstance().getNamedElement(this, offset) as? PsiNamedElement
 
 fun PsiElement.asNameIdentifierOwner(): PsiNameIdentifierOwner? =
     this as? PsiNameIdentifierOwner
@@ -78,10 +78,12 @@ fun PsiFile.position(offset: Int): Position =
         Position(line, offset - getLineStartOffset(line))
     }
 
-fun PsiNamedElement.findReferences(): List<PsiElement> =
-    ReferencesSearch.search(this)
-        .findAll()
-        .map { it.element }
+fun PsiElement.findReferences(): List<PsiElement> =
+    invokeAndWaitIfNeed {
+        ReferencesSearch.search(this)
+            .findAll()
+            .map { it.element }
+    }
 
 fun PsiReference.resolveAll(): List<PsiElement> =
     resolve()?.let { listOf(it) }

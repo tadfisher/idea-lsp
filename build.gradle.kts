@@ -34,8 +34,7 @@ dependencies {
 
     testImplementation("com.google.guava:guava:24.0-jre")
     testImplementation("com.google.truth:truth:0.39")
-    testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.0.0-alpha02")
-    testImplementation("com.squareup.okio:okio:1.13.0")
+    testImplementation("com.nhaarman.mockitokotlin2:mockito-kotlin:2.0.0-alpha03")
     testImplementation(kotlin("reflect", version = kotlinVersion))
     testImplementation(kotlin("test", version = kotlinVersion))
     testImplementation("org.junit.platform:junit-platform-runner:1.1.0")

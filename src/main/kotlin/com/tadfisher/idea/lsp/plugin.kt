@@ -24,7 +24,7 @@ class LspApplicationStarter : ApplicationStarterEx() {
     }
 
     override fun main(a: Array<out String>) {
-        val application = ApplicationManagerEx.getApplicationEx().apply { doNotSave() }
+        val application = ApplicationManagerEx.getApplicationEx()
         val server = application.getComponent(LspServer::class.java)
         val future = server.connect(StdioConnectionFactory().open())
         future?.get()

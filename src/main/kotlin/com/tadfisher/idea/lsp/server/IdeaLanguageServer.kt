@@ -199,8 +199,12 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
 
     override fun references(params: ReferenceParams): CompletableFuture<List<Location>> =
         CompletableFuture.supplyAsync {
-            session.findReferences(params.textDocument.uri, params.position.line, params.position.character)
-                .map { it.location(workspace) }
+            session.findReferences(
+                params.textDocument.uri,
+                params.position.line,
+                params.position.character,
+                params.context.isIncludeDeclaration
+            ).map { it.location(workspace) }
         }
 
     override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {

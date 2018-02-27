@@ -31,14 +31,21 @@ import org.eclipse.lsp4j.FormattingCapabilities
 import org.eclipse.lsp4j.HoverCapabilities
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.InitializeResult
+import org.eclipse.lsp4j.Location
 import org.eclipse.lsp4j.OnTypeFormattingCapabilities
+import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.RangeFormattingCapabilities
+import org.eclipse.lsp4j.ReferenceContext
+import org.eclipse.lsp4j.ReferenceParams
 import org.eclipse.lsp4j.ReferencesCapabilities
 import org.eclipse.lsp4j.RenameCapabilities
 import org.eclipse.lsp4j.SignatureHelpCapabilities
 import org.eclipse.lsp4j.SymbolCapabilities
 import org.eclipse.lsp4j.SynchronizationCapabilities
 import org.eclipse.lsp4j.TextDocumentClientCapabilities
+import org.eclipse.lsp4j.TextDocumentIdentifier
+import org.eclipse.lsp4j.TextDocumentPositionParams
 import org.eclipse.lsp4j.WorkspaceClientCapabilities
 import org.eclipse.lsp4j.WorkspaceEditCapabilities
 import org.eclipse.lsp4j.services.LanguageClient
@@ -110,7 +117,7 @@ class LspTestFixture(
     fun initialize(): InitializeResult =
         server.initialize(InitializeParams().apply {
             processId = 0
-            rootUri = baseDir.url()
+            rootUri = baseDir.url
             trace = "verbose"
             capabilities = ALL_CLIENT_CAPABILITIES
         }).get().also {
@@ -122,7 +129,7 @@ class LspTestFixture(
             ?: throw FileNotFoundException(path)
 
     fun findDocument(file: File): Document =
-        server.session.workspace.findDocument(file.url())
+        server.session.workspace.findDocument(file.url)
             ?: throw FileNotFoundException(file.canonicalPath)
 }
 
@@ -158,4 +165,17 @@ class LspTestApplication :  CommandLineApplication(true, false, true), Disposabl
     }
 }
 
-fun File.url(): String = "file://$canonicalPath"
+val File.url: String
+    get() = "file://$canonicalPath"
+
+fun File.location(lineStart: Int, charStart: Int, lineEnd: Int, charEnd: Int): Location =
+    Location(url, Range(Position(lineStart, charStart), Position(lineEnd, charEnd)))
+
+fun File.position(line: Int, char: Int): TextDocumentPositionParams =
+    TextDocumentPositionParams(TextDocumentIdentifier(url), Position(line, char))
+
+fun File.reference(line: Int, char: Int, includeDeclaration: Boolean = false): ReferenceParams =
+    ReferenceParams(ReferenceContext(includeDeclaration)).apply {
+        textDocument = TextDocumentIdentifier(url)
+        position = Position(line, char)
+    }
