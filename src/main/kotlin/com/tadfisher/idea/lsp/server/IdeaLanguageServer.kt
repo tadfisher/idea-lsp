@@ -164,9 +164,11 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<MutableList<out SymbolInformation>> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<List<SymbolInformation>> =
+        CompletableFuture.supplyAsync {
+            session.listSymbols(params.textDocument.uri)
+                .map { SymbolInformation(it.name, it.kind, it.element.location(workspace), it.containerName) }
+        }
 
     override fun didOpen(params: DidOpenTextDocumentParams) =
         session.updateFile(params.textDocument.uri, params.textDocument.text)

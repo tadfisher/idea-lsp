@@ -42,6 +42,8 @@ import org.eclipse.lsp4j.ReferencesCapabilities
 import org.eclipse.lsp4j.RenameCapabilities
 import org.eclipse.lsp4j.SignatureHelpCapabilities
 import org.eclipse.lsp4j.SymbolCapabilities
+import org.eclipse.lsp4j.SymbolInformation
+import org.eclipse.lsp4j.SymbolKind
 import org.eclipse.lsp4j.SynchronizationCapabilities
 import org.eclipse.lsp4j.TextDocumentClientCapabilities
 import org.eclipse.lsp4j.TextDocumentIdentifier
@@ -179,3 +181,10 @@ fun File.reference(line: Int, char: Int, includeDeclaration: Boolean = false): R
         textDocument = TextDocumentIdentifier(url)
         position = Position(line, char)
     }
+
+fun symbol(
+    name: String,
+    kind: SymbolKind,
+    location: Location,
+    containerName: String?
+) = SymbolInformation(name, kind, location, containerName)

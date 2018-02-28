@@ -50,7 +50,7 @@ implemented, and nothing has been tested with real clients.
   - [ ] ~implementation~
   - [X] ~references~
   - [ ] ~documentHighlight~
-  - [ ] ~documentSymbol~
+  - [X] ~documentSymbol~
   - [ ] ~codeAction~
   - [ ] ~codeLens~
   - [ ] ~codeLens resolve~

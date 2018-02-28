@@ -2,6 +2,12 @@ package com.tadfisher.idea.lsp
 
 import com.google.common.truth.Truth.assertThat
 import org.eclipse.lsp4j.DidOpenTextDocumentParams
+import org.eclipse.lsp4j.DocumentSymbolParams
+import org.eclipse.lsp4j.SymbolKind
+import org.eclipse.lsp4j.SymbolKind.*
+import org.eclipse.lsp4j.SymbolKind.Boolean
+import org.eclipse.lsp4j.SymbolKind.Number
+import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.eclipse.lsp4j.TextDocumentItem
 import org.spekframework.spek2.Spek
 import org.spekframework.spek2.lifecycle.CachingMode
@@ -136,6 +142,47 @@ class JavaSpec : Spek({
                         src.location(2, 6, 2, 20)
                     )
                 }
+            }
+        }
+
+        it("should list symbols") {
+            val src = fixture.find("src/main/java/com/example/Symbols.java")
+
+            val symbols = fixture.server.documentSymbol(DocumentSymbolParams(TextDocumentIdentifier(src.url))).get()
+
+            with (src) {
+                assertThat(symbols).containsAllOf(
+                    symbol("Symbols.java", File, location(0, 0, 332, 0), null),
+                    symbol("com.example", Package, location(0, 0, 0, 20), "Symbols.java"),
+                    symbol("java.io.*", Module, location(2, 0, 2, 17), "Symbols.java"),
+                    symbol("com.example.Symbols", Class, location(6, 13, 6, 20), "Symbols.java"),
+                    symbol("com.example.XXX", Interface, location(330, 10, 330, 13), "Symbols.java"),
+
+                    symbol("@Deprecated", Property, location(5, 1, 5, 11), "com.example.Symbols"),
+                    symbol("clz1", Field, location(8, 17, 8, 21), "com.example.Symbols"),
+                    symbol("<init>", Constructor, location(42, 4, 47, 5), "com.example.Symbols"),
+                    symbol("<init>", Constructor, location(105, 4, 107, 5), "com.example.Symbols"),
+                    symbol("<init>", Constructor, location(109, 4, 111, 5), "com.example.Symbols"),
+                    symbol("Symbols", Constructor, location(157, 18, 157, 25), "com.example.Symbols"),
+                    symbol("ddd", Method, location(153, 20, 153, 23), "com.example.Symbols"),
+                    symbol("main", Method, location(251, 23, 251, 27), "com.example.Symbols"),
+
+                    symbol("<anonymous class>", Class, location(163, 23, 163, 24), "Symbols"),
+                    symbol("i", Field, location(165, 16, 165, 17), "<anonymous class>"),
+                    symbol("X", Constructor, location(167, 23, 167, 24), "<anonymous class>"),
+                    symbol("m", Method, location(170, 24, 170, 25), "<anonymous class>"),
+
+                    symbol("com.example.Symbols.Enum", SymbolKind.Enum, location(131, 16, 131, 20), "com.example.Symbols"),
+                    symbol("m", Constant, location(133, 8, 133, 9), "com.example.Symbols.Enum"),
+                    symbol("Enum", Constructor, location(146, 16, 146, 20), "com.example.Symbols.Enum"),
+
+                    symbol("10", Number, location(16, 24, 16, 26), "arr"),
+                    symbol("null", Constant, location(20, 20, 20, 24), "byebye"),
+                    symbol("z", Variable, location(43, 12, 43, 13), "<init>"),
+                    symbol("true", Boolean, location(162, 20, 162, 24), "b"),
+                    symbol("false", Boolean, location(162, 30, 162, 35), "y"),
+                    symbol("'c'", SymbolKind.String, location(178, 34, 178, 37), "Y")
+                )
             }
         }
     }

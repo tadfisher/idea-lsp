@@ -23,11 +23,12 @@ repositories {
     mavenCentral()
     jcenter()
     maven { url = uri("https://oss.jfrog.org/artifactory/libs-snapshot") }
+    maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots") }
 }
 
 dependencies {
     implementation(kotlin("stdlib-jre8", version = kotlinVersion))
-    implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.3.0")
+    implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.4.0-SNAPSHOT")
     implementation("com.kohlschutter.junixsocket:junixsocket-native-common:2.0.4")
     implementation("com.kohlschutter.junixsocket:junixsocket-common:2.0.4")
     implementation("com.xenomachina:kotlin-argparser:2.0.4")

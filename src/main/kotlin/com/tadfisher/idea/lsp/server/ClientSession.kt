@@ -8,6 +8,8 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.PsiElement
 import com.intellij.usageView.UsageInfo
 import com.tadfisher.idea.lsp.LspRenameRefactoring
+import org.jetbrains.uast.UFile
+import org.jetbrains.uast.toUElementOfType
 import java.io.FileNotFoundException
 
 class ClientSession(val workspace: Workspace) {
@@ -84,6 +86,14 @@ class ClientSession(val workspace: Workspace) {
             } else {
                 it
             }}
+    }
+
+    fun listSymbols(uri: String): List<LspSymbol> {
+        val psiFile = workspace.findPsiFile(uri) ?: throw FileNotFoundException(uri)
+        val uFile = psiFile.toUElementOfType<UFile>() ?: return emptyList()
+        val symbols = mutableListOf<LspSymbol>()
+        workspace.read { uFile.accept(SymbolUastVisitor { symbols.add(it) }) }
+        return symbols.toList()
     }
 
     fun rename(uri: String, line: Int, char: Int, name: String): Map<String, List<UsageInfo>> {
