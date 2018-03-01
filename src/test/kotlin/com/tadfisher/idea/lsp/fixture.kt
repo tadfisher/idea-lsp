@@ -171,7 +171,7 @@ val File.url: String
     get() = "file://$canonicalPath"
 
 fun File.location(lineStart: Int, charStart: Int, lineEnd: Int, charEnd: Int): Location =
-    Location(url, Range(Position(lineStart, charStart), Position(lineEnd, charEnd)))
+    Location(url, range(lineStart, charStart, lineEnd, charEnd))
 
 fun File.position(line: Int, char: Int): TextDocumentPositionParams =
     TextDocumentPositionParams(TextDocumentIdentifier(url), Position(line, char))
@@ -181,6 +181,9 @@ fun File.reference(line: Int, char: Int, includeDeclaration: Boolean = false): R
         textDocument = TextDocumentIdentifier(url)
         position = Position(line, char)
     }
+
+fun range(lineStart: Int, charStart: Int, lineEnd: Int, charEnd: Int): Range =
+    Range(Position(lineStart, charStart), Position(lineEnd, charEnd))
 
 fun symbol(
     name: String,

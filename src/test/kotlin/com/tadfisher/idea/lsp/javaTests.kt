@@ -3,12 +3,14 @@ package com.tadfisher.idea.lsp
 import com.google.common.truth.Truth.assertThat
 import org.eclipse.lsp4j.DidOpenTextDocumentParams
 import org.eclipse.lsp4j.DocumentSymbolParams
+import org.eclipse.lsp4j.MarkedString
 import org.eclipse.lsp4j.SymbolKind
 import org.eclipse.lsp4j.SymbolKind.*
 import org.eclipse.lsp4j.SymbolKind.Boolean
 import org.eclipse.lsp4j.SymbolKind.Number
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.eclipse.lsp4j.TextDocumentItem
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spekframework.spek2.Spek
 import org.spekframework.spek2.lifecycle.CachingMode
 
@@ -38,6 +40,117 @@ class JavaSpec : Spek({
             val doc = fixture.findDocument(src)
             assertThat(doc.text).isEqualTo(virtualContents)
             assertThat(src.readText()).isEqualTo(fileContents)
+        }
+
+        group("should return hover information") {
+            val src = fixture.find("src/main/java/com/example/Hover.java")
+
+            test("for class") {
+                val definition = fixture.find("src/main/java/com/example/Definition.java")
+
+                val hover = fixture.server.hover(src.position(7, 15)).get()
+
+                with (hover) {
+                    assertThat(contents).containsExactly(
+                        Either.forRight<String, MarkedString>(MarkedString("java", """
+                            |```
+                            |com.example
+                            |public class Hover
+                            |extends java.lang.Object
+                            |```
+                            |
+                            |Hover javadoc.
+                            |
+                            ||-----|-----|
+                            || See Also: | [`Definition`](${definition.url}#28) |
+                            |
+                            |
+                            """.trimMargin())))
+                    assertThat(range).isEqualTo(range(7, 13, 7, 18))
+                }
+            }
+
+            test("for field") {
+                val hover = fixture.server.hover(src.position(12, 21)).get()
+
+                with (hover) {
+                    assertThat(contents).containsExactly(
+                        Either.forRight<String, MarkedString>(MarkedString("java", """
+                            |```
+                            |[`com.example.Hover`](${src.url}#83)
+                            |public final int value
+                            |```
+                            |
+                            |Field javadoc.
+                            |
+                            |
+                            """.trimMargin())))
+                    assertThat(range).isEqualTo(range(12, 21, 12, 26))
+                }
+            }
+
+            test("for constructor") {
+                val hover = fixture.server.hover(src.position(18, 11)).get()
+
+                with (hover) {
+                    assertThat(contents).containsExactly(
+                        Either.forRight<String, MarkedString>(MarkedString("java", """
+                            |```
+                            |[`com.example.Hover`](${src.url}#83)
+                            |public Hover()
+                            |```
+                            |
+                            |Constructor javadoc.
+                            |
+                            ||-----|-----|
+                            || See Also: | [`Hover(int)`](${src.url}#369) |
+                            |
+                            |
+                            """.trimMargin())))
+                    assertThat(range).isEqualTo(range(18, 11, 18, 16))
+                }
+            }
+
+            test("for secondary constructor") {
+                val hover = fixture.server.hover(src.position(26, 11)).get()
+
+                with (hover) {
+                    assertThat(contents).containsExactly(
+                        Either.forRight<String, MarkedString>(MarkedString("java", """
+                            |```
+                            |[`com.example.Hover`](${src.url}#83)
+                            |public Hover(int value)
+                            |```
+                            |
+                            |Secondary constructor javadoc.
+                            |
+                            ||-----|-----|
+                            || Params: | value -- value param |
+                            |
+                            |
+                            """.trimMargin())))
+                    assertThat(range).isEqualTo(range(26, 11, 26, 16))
+                }
+            }
+
+            test("for method") {
+                val hover = fixture.server.hover(src.position(33, 16)).get()
+
+                with (hover) {
+                    assertThat(contents).containsExactly(
+                        Either.forRight<String, MarkedString>(MarkedString("java", """
+                            |```
+                            |[`com.example.Hover`](${src.url}#83)
+                            |public void method()
+                            |```
+                            |
+                            |Method javadoc.
+                            |
+                            |
+                            """.trimMargin())))
+                    assertThat(range).isEqualTo(range(33, 16, 33, 22))
+                }
+            }
         }
 
         group("should find definitions") {

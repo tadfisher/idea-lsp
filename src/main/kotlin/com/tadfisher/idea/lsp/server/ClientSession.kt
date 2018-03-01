@@ -1,21 +1,37 @@
 package com.tadfisher.idea.lsp.server
 
 import com.intellij.codeInsight.TargetElementUtil
+import com.intellij.codeInsight.documentation.DocumentationManager
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationAction
 import com.intellij.openapi.application.ex.ApplicationManagerEx
 import com.intellij.openapi.application.invokeAndWaitIfNeed
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.psi.PsiComment
+import com.intellij.psi.PsiDocCommentBase
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.usageView.UsageInfo
 import com.tadfisher.idea.lsp.LspRenameRefactoring
+import com.vladsch.flexmark.convert.html.FlexmarkHtmlParser
+import com.vladsch.flexmark.util.format.TableFormatOptions
+import com.vladsch.flexmark.util.mappers.CharWidthProvider
+import com.vladsch.flexmark.util.options.MutableDataSet
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.toUElementOfType
+import org.jsoup.Jsoup
 import java.io.FileNotFoundException
 
 class ClientSession(val workspace: Workspace) {
     val application = ApplicationManagerEx.getApplicationEx()
 
     private val targetElementUtil by lazy { TargetElementUtil.getInstance() }
+    private val documentationManager by lazy { DocumentationManager.getInstance(workspace.project) }
+    private val docParserOptions by lazy { MutableDataSet()
+        .set(TableFormatOptions.ADJUST_COLUMN_WIDTH, false)
+        .set(TableFormatOptions.CHAR_WIDTH_PROVIDER, object : CharWidthProvider by CharWidthProvider.NULL {
+            override fun charWidth(s: CharSequence): Int = 3
+        })
+    }
 
     fun close() {
         workspace.clear()
@@ -44,6 +60,28 @@ class ClientSession(val workspace: Workspace) {
         with (workspace.findDocument(uri) ?: throw FileNotFoundException(uri)) {
             workspace.psiDocumentManager.commitDocument(this)
         }
+
+    fun hoverInfo(uri: String, line: Int, char: Int): HoverInfo? {
+        val psiFile = workspace.findPsiFile(uri) ?: throw FileNotFoundException(uri)
+        val document = workspace.documentFor(psiFile) ?: throw FileNotFoundException(uri)
+        val offset = document.offset(line, char)
+        val editor = FakeEditor(workspace.project, document, offset)
+        val originalElement = workspace.read { psiFile.findElementAt(offset) } ?: return null
+        val targetElement = workspace.read {
+            documentationManager.findTargetElement(editor, offset, psiFile, originalElement)
+                ?: PsiTreeUtil.getParentOfType(originalElement, PsiComment::class.java)
+                    ?.let { if (it is PsiDocCommentBase) it.owner else it.parent }
+        } ?: return null
+
+        return documentationManager.generateDocumentation(targetElement, originalElement)
+            ?.let {
+                Jsoup.parseBodyFragment(it).apply {
+                    replaceElementLinks(this, originalElement, workspace)
+                }.body().html()
+            }
+            ?.let { FlexmarkHtmlParser.parse(it, 1, docParserOptions) }
+            ?.let { HoverInfo(originalElement.language, originalElement, it) }
+    }
 
     fun findDefinitions(uri: String, line: Int, char: Int): List<PsiElement> {
         val psiFile = workspace.findPsiFile(uri) ?: throw FileNotFoundException(uri)

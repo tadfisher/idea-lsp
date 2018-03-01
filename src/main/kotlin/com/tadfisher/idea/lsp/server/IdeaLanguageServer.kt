@@ -26,6 +26,7 @@ import org.eclipse.lsp4j.Hover
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.InitializeResult
 import org.eclipse.lsp4j.Location
+import org.eclipse.lsp4j.MarkedString
 import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.ReferenceParams
 import org.eclipse.lsp4j.RenameParams
@@ -118,9 +119,20 @@ class IdeaLanguageServer : LanguageServer, LanguageClientAware, WorkspaceService
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun hover(position: TextDocumentPositionParams): CompletableFuture<Hover> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun hover(position: TextDocumentPositionParams): CompletableFuture<Hover> =
+        CompletableFuture.supplyAsync {
+            Hover().apply {
+                val info = session.hoverInfo(position.textDocument.uri, position.position.line, position.position.character)
+                if (info != null) {
+                    contents = listOf(
+                        Either.forRight<String, MarkedString>(
+                            MarkedString(info.language.id.toLowerCase(), info.content)
+                        )
+                    )
+                    range = info.element.location(workspace).range
+                }
+            }
+        }
 
     override fun documentHighlight(position: TextDocumentPositionParams): CompletableFuture<MutableList<out DocumentHighlight>> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.

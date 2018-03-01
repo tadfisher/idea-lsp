@@ -31,6 +31,7 @@ dependencies {
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.4.0-SNAPSHOT")
     implementation("com.kohlschutter.junixsocket:junixsocket-native-common:2.0.4")
     implementation("com.kohlschutter.junixsocket:junixsocket-common:2.0.4")
+    implementation("com.vladsch.flexmark:flexmark-html-parser:0.32.4")
     implementation("com.xenomachina:kotlin-argparser:2.0.4")
 
     testImplementation("com.google.guava:guava:24.0-jre")

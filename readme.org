@@ -43,7 +43,7 @@ implemented, and nothing has been tested with real clients.
 - Language Features
   - [ ] ~completion~
   - [ ] ~completion resolve~
-  - [ ] ~hover~
+  - [X] ~hover~
   - [ ] ~signatureHelp~
   - [X] ~definition~
   - [ ] ~typeDefinition~
